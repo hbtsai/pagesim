@@ -9,7 +9,7 @@ LIST_HEAD(Page_Ref_List, Page_Ref) page_refs;
 // List for page tables and victim lists
 LIST_HEAD(Frame_List, Frame);
 
-// stuct to hold Frame info
+// stuct to hold Page info
 typedef struct Page_Ref
 {
         LIST_ENTRY(Page_Ref) pages; // frames node, next

@@ -12,6 +12,17 @@
 #include <sys/queue.h>
 #include "pagesim.h"
 
+
+
+/*
+ * TODO List:
+ *
+ * 1. memory profiling (ref. lmbench) : use avg. mem latency as a clock base. 
+ * 2. create swap space, add simulated latency (penalty)
+ * 3. add simulated timing results 
+ *
+ */
+
 /**
  * Configuration variables
  */
@@ -68,24 +79,16 @@ int main ( int argc, char *argv[] )
                 if ( argc > 3 )
                 {
                         if(atoi(argv[3]) == 1 || atoi(argv[3]) == 0)
-                        {
                                 printrefs = atoi(argv[3]);
-                        }
                         else
-                        {
                                 printf( "Printrefs must be 1 or 0, ignoring\n");
-                        }
                 }
                 if ( argc > 4 )
                 {
                         if(atoi(argv[4]) == 1 || atoi(argv[3]) == 0)
-                        {
                                 debug = atoi(argv[4]);
-                        }
                         else
-                        {
                                 printf( "Debug must be 1 or 0, ignoring\n");
-                        }
                 }
                 switch(argv[1][0])
                 {
@@ -134,9 +137,7 @@ int init()
         num_algos = sizeof(algos)/sizeof(Algorithm);
         size_t i = 0;
         for (i = 0; i < num_algos; ++i)
-        {
                 algos[i].data = create_algo_data_store();
-        }
         return 0;
 }
 
@@ -154,7 +155,7 @@ void gen_page_refs()
         Page_Ref *page = gen_ref();
         LIST_INSERT_HEAD(&page_refs, page, pages);
         while(num_refs < max_page_calls)
-        { // generate a page ref up too  max_page_calls and add to list
+        { // generate a page ref up to max_page_calls and add to list
                 LIST_INSERT_AFTER(page, gen_ref(), pages);
                 page = page->pages.le_next;
                 num_refs++;
@@ -197,6 +198,7 @@ Page_Ref* gen_ref()
 {
         Page_Ref *page = malloc(sizeof(Page_Ref));
         page->page_num = rand() % page_ref_upper_bound;
+		fprintf(stderr, "%s:%d page_num==%#x\n", __FILE__, __LINE__, page->page_num);
         return page;
 }
 
@@ -531,11 +533,13 @@ int FIFO(Algorithm_Data *data)
  */
 int LRU(Algorithm_Data *data)
 {
-        struct Frame *framep = data->page_table.lh_first,
+        struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
                      *victim = NULL;
         int fault = 0;
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
-        while (framep != NULL && framep->page > -1 && framep->page != last_page_ref) {
+        while (framep != NULL && 
+				framep->page > -1 && 
+				framep->page != last_page_ref) {
                 if(victim == NULL || framep->time < victim->time)
                         victim = framep; // No victim yet or frame older than victim
                 framep = framep->frames.le_next;
