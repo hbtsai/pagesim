@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <getopt.h>
 #include <sys/queue.h>
 #include "pagesim.h"
 
@@ -20,17 +21,19 @@
  * 1. memory profiling (ref. lmbench) : use avg. mem latency as a clock base. 
  * 2. create swap space, add simulated latency (penalty)
  * 3. add simulated timing results 
+ * 4. record real trace (how?)
+ * 5. take real trace
  *
  */
 
 /**
  * Configuration variables
  */
-int num_frames = 10; // Number of avaliable pages in page tables
-int page_ref_upper_bound = 12; // Largest page reference
-int max_page_calls = 1000; // Max number of page refs to test
+int num_frames = 15; // Number of avaliable pages in page tables
+int page_ref_upper_bound = -1; //2*num_frames Largest page reference
+int max_page_calls = -1;//1000*num_frames; // Max number of page refs to test
 
-int debug = 0; // Debug bool, 1 shows verbose output
+int debug_flag = 0; // Debug bool, 1 shows verbose output
 int printrefs = 0; // Print refs bool, 1 shows output after each page ref
 
 /**
@@ -64,61 +67,65 @@ int num_refs = 0; // Number of page refs in page_refs list
 int main ( int argc, char *argv[] )
 {
         init();
-        if ( !(argc >= 3 && argc <= 5) )
-        { /* argc should be 3-5 for correct execution */
+
+        if ( argc < 3)
                 print_help(argv[0]);
-        }
-        else
+
+		int opt;
+		char* token;
+		char delim[2]={0};
+		delim[0]=' ';
+		delim[1]=',';
+        while((opt = getopt(argc, argv, "a:f:vd")) != -1)
         {
-                num_frames = atoi(argv[2]);
-                if ( num_frames < 1 )
-                {
-                        num_frames = 1;
-                        printf( "Number of page frames must be at least 1, setting to 1\n");
-                }
-                if ( argc > 3 )
-                {
-                        if(atoi(argv[3]) == 1 || atoi(argv[3]) == 0)
-                                printrefs = atoi(argv[3]);
-                        else
-                                printf( "Printrefs must be 1 or 0, ignoring\n");
-                }
-                if ( argc > 4 )
-                {
-                        if(atoi(argv[4]) == 1 || atoi(argv[3]) == 0)
-                                debug = atoi(argv[4]);
-                        else
-                                printf( "Debug must be 1 or 0, ignoring\n");
-                }
-                switch(argv[1][0])
-                {
-                case 'L':
-                case 'l':
-                        algos[0].selected = 1;
-                        break;
-                case 'C':
-                case 'c':
-                        algos[0].selected = 1;
-                        break;
-                case 'A':
-                case 'a':
-                case 'T':
-                case 't':
-                        printrefs = 1;
-                        num_refs = -1;
-                        size_t i = 0;
-                        for (i = 0; i < num_algos; i++)
-                        {
-                                algos[i].selected = 1;
-                        }
-                        break;
-                default:
-                        printf( "%s algorithm is invalid choice or not yet implemented\n", argv[1]);
-                        print_help(argv[0]);
-                        return 1;
-                }
-                event_loop();
-        }
+
+			switch(opt)
+			{
+				case 'a':
+					token = strtok(optarg, delim);
+					while(token)
+					{
+						if(strcmp(token, "LRU") == 0)
+							algos[3].selected = 1;
+						else if(strcmp(token, "CLOCK") == 0)
+							algos[4].selected = 1;
+						else if(strcmp(token, "NFU") == 0)
+							algos[5].selected = 1;
+						else if(strcmp(token, "AGING") == 0)
+							algos[6].selected = 1;
+						else if(strcmp(token, "RANDOM") == 0)
+							algos[1].selected = 1;
+						else if(strcmp(token, "FIFO") ==0)
+							algos[2].selected = 1;
+						else if(strcmp(token, "OPT") ==0)
+							algos[0].selected = 1;
+						else
+							fprintf(stderr, "unrecognized or unsupported algorithm: %s\n", token);
+						token = strtok(0, delim);
+					}
+
+					break;
+				case 'f':
+					num_frames = atoi(argv[2]);
+					if ( num_frames < 1 )
+               		{
+               		        num_frames = 1;
+               		        printf( "Number of page frames must be at least 1, setting to 1\n");
+               		}
+					break;
+				case 'v':
+					printrefs = 1;
+					break;
+				case 'd':
+					debug_flag = 1;
+					break;
+				default:
+					print_help(argv[0]);
+					break;
+			}
+		}
+
+		event_loop();
         cleanup();
         return 0;
 }
@@ -132,6 +139,9 @@ int main ( int argc, char *argv[] )
  */
 int init()
 {
+	max_page_calls = num_frames * 100000;
+	page_ref_upper_bound = num_frames<<1;
+	srand((int)time(NULL));
         gen_page_refs();
         // Calculate number of algos
         num_algos = sizeof(algos)/sizeof(Algorithm);
@@ -160,14 +170,15 @@ void gen_page_refs()
                 page = page->pages.le_next;
                 num_refs++;
         }
+
         // we need look-ahead for Optimal algorithm
         int all_found = 0;
         optimum_find_test = (int*)malloc(page_ref_upper_bound*sizeof(int));
+
         size_t i;
         for(i = 0; i < page_ref_upper_bound; ++i)
-        { // generate new refs until one of each have been added to list
                 optimum_find_test[i] = -1;
-        }
+
         while(all_found == 0)
         { // generate new refs until one of each have been added to list
                 LIST_INSERT_AFTER(page, gen_ref(), pages);
@@ -198,7 +209,7 @@ Page_Ref* gen_ref()
 {
         Page_Ref *page = malloc(sizeof(Page_Ref));
         page->page_num = rand() % page_ref_upper_bound;
-		fprintf(stderr, "%s:%d page_num==%#x\n", __FILE__, __LINE__, page->page_num);
+		//fprintf(stderr, "%s:%d page_num==%d\n", __FILE__, __LINE__, page->page_num);
         return page;
 }
 
@@ -301,7 +312,7 @@ int get_ref()
  *
  * page all selected algorithms with input ref
  *
- * @param page_ref {int} page to ref
+ * @param page_ref {int} referenced page number
  *
  * @return 0
  */
@@ -314,9 +325,7 @@ int page(int page_ref)
                 if(algos[i].selected==1) {
                         algos[i].algo(algos[i].data);
                         if(printrefs == 1)
-                        {
                                 print_stats(algos[i]);
-                        }
                 }
         }
 
@@ -335,7 +344,7 @@ int page(int page_ref)
  */
 int add_victim(struct Frame_List *victim_list, struct Frame *frame)
 {
-        if(debug)
+        if(debug_flag)
                 printf("Victim index: %d, Page: %d\n", frame->index, frame->page);
         struct Frame *victim = malloc(sizeof(Frame));
         *victim = *frame;
@@ -392,7 +401,7 @@ int OPTIMAL(Algorithm_Data *data)
                         }
                         framep = framep->frames.le_next;
                 }
-                if(debug) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+                if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
                 add_victim(&data->victim_list, victim);
                 victim->page = last_page_ref;
                 time(&victim->time);
@@ -411,7 +420,7 @@ int OPTIMAL(Algorithm_Data *data)
                 time(&framep->time);
                 framep->extra = counter;
         }
-        if(debug)
+        if(debug_flag)
         {
                 printf("Page Ref: %d\n", last_page_ref);
                 for (framep = data->page_table.lh_first; framep != NULL; framep = framep->frames.le_next)
@@ -444,7 +453,7 @@ int RANDOM(Algorithm_Data *data)
         }
         if(framep == NULL)
         { // It's a miss, kill our victim
-                if(debug) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+                if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
                 add_victim(&data->victim_list, victim);
                 victim->page = last_page_ref;
                 time(&victim->time);
@@ -463,7 +472,7 @@ int RANDOM(Algorithm_Data *data)
                 time(&framep->time);
                 framep->extra = counter;
         }
-        if(debug)
+        if(debug_flag)
         {
                 printf("Page Ref: %d\n", last_page_ref);
                 for (framep = data->page_table.lh_first; framep != NULL; framep = framep->frames.le_next)
@@ -498,7 +507,7 @@ int FIFO(Algorithm_Data *data)
         /* Make a decision */
         if(framep == NULL)
         { // It's a miss, kill our victim
-                if(debug) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+                if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
                 add_victim(&data->victim_list, victim);
                 victim->page = last_page_ref;
                 time(&victim->time);
@@ -536,7 +545,24 @@ int LRU(Algorithm_Data *data)
         struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
                      *victim = NULL;
         int fault = 0;
+
+		/* * * * * * * * * * * * * * * * * * * * *
+		 * a simple test to count number of frames 
+		 * * * * * * * * * * * * * * * * * * * * *
+		struct Frame *tf=NULL;
+		size_t num_fr = 0;
+		tf=LIST_FIRST(&(data->page_table));
+		LIST_FOREACH(tf, &(data->page_table), frames)
+		{
+			fprintf(stderr, "%s:%d fr_index = %d fr_page = %d\n", __FILE__, __LINE__, tf->index, tf->page);
+			num_fr++;		
+		}
+		fprintf(stderr, "%s:%d number of frames=%zu\n", __FILE__, __LINE__, num_fr);
+		*/
+
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
+
+
         while (framep != NULL && 
 				framep->page > -1 && 
 				framep->page != last_page_ref) {
@@ -547,7 +573,7 @@ int LRU(Algorithm_Data *data)
         /* Make a decision */
         if(framep == NULL)
         { // It's a miss, kill our victim
-                if(debug) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+                if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
                 add_victim(&data->victim_list, victim);
                 victim->page = last_page_ref;
                 time(&victim->time);
@@ -727,14 +753,14 @@ int AGING(Algorithm_Data *data)
  *
  * Function to print results after algo is ran
  */
-int print_help(const char *binary)
+void print_help(const char *binary)
 {
-        printf( "usage: %s algorithm num_frames show_process debug\n", binary);
-        printf( "   algorithm    - page algorithm to use {LRU, CLOCK}\n");
-        printf( "   num_frames   - number of page frames {int > 0}\n");
-        printf( "   show_process - print page table after each ref is processed {1 or 0}\n");
-        printf( "   debug        - verbose debugging output {1 or 0}\n");
-        return 0;
+        printf( "usage: %s -a [algorithm] -f [num_frames] -s -v  \n", binary);
+        printf( "   -a algorithm    - page algorithm to use, e.g., \"LRU,CLOCK\"\n");
+        printf( "   -f num_frames   - number of page frames {int > 0}\n");
+        printf( "   -v - print page table after each ref is processed {1 or 0}\n");
+        printf( "   -d - verbose debugging output {1 or 0}\n");
+		exit(0);
 }
 
 /**

@@ -64,7 +64,7 @@ int add_victim(struct Frame_List *victim_list, struct Frame *frame); // add vict
 /**
  * Output functions
  */
-int print_help(const char *binary); // prints help screen
+void print_help(const char *binary); // prints help screen
 int print_list(struct Frame *head, const char* index_label, const char* value_label); // prints a list
 int print_stats(Algorithm algo); // detailed stats
 int print_summary(Algorithm algo); // one line summary
