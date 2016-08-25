@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-c -Wall
 LDFLAGS=
-LFLAGS=-pthread
+LFLAGS=-pthread -lm
 SOURCES=pagesim.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=pagesim
@@ -15,4 +15,4 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(OBJECTS) *.o *~
+	rm -f $(EXECUTABLE) $(OBJECTS) *.o *~

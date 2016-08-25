@@ -1,0 +1,50 @@
+LRU Algorithm
+Frames in Mem: 10, Hits: 327573, Misses: 327787, Swap out: 16387, Swap in: 311390, Swap I/O: 327777, Hit Ratio: 0.499837
+swap on HDD takes 1655272000.000000 mu-seconds
+swap on SSD takes 13520200.000000 mu-seconds
+swap on PCM takes 28433.850000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327719, Misses: 327641, Swap out: 16474, Swap in: 311157, Swap I/O: 327631, Hit Ratio: 0.500060
+swap on HDD takes 1654629000.000000 mu-seconds
+swap on SSD takes 13544825.000000 mu-seconds
+swap on PCM takes 28462.205000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327367, Misses: 327993, Swap out: 16575, Swap in: 311408, Swap I/O: 327983, Hit Ratio: 0.499522
+swap on HDD takes 1656490000.000000 mu-seconds
+swap on SSD takes 13586450.000000 mu-seconds
+swap on PCM takes 28529.020000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327399, Misses: 327961, Swap out: 16507, Swap in: 311444, Swap I/O: 327951, Hit Ratio: 0.499571
+swap on HDD takes 1656262000.000000 mu-seconds
+swap on SSD takes 13563550.000000 mu-seconds
+swap on PCM takes 28497.360000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 328248, Misses: 327112, Swap out: 16428, Swap in: 310674, Swap I/O: 327102, Hit Ratio: 0.500867
+swap on HDD takes 1651938000.000000 mu-seconds
+swap on SSD takes 13516650.000000 mu-seconds
+swap on PCM takes 28407.810000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327249, Misses: 328111, Swap out: 16443, Swap in: 311658, Swap I/O: 328101, Hit Ratio: 0.499342
+swap on HDD takes 1656948000.000000 mu-seconds
+swap on SSD takes 13546500.000000 mu-seconds
+swap on PCM takes 28479.270000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327389, Misses: 327971, Swap out: 16400, Swap in: 311561, Swap I/O: 327961, Hit Ratio: 0.499556
+swap on HDD takes 1656205000.000000 mu-seconds
+swap on SSD takes 13529025.000000 mu-seconds
+swap on PCM takes 28451.465000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327762, Misses: 327598, Swap out: 16455, Swap in: 311133, Swap I/O: 327588, Hit Ratio: 0.500125
+swap on HDD takes 1654395000.000000 mu-seconds
+swap on SSD takes 13537575.000000 mu-seconds
+swap on PCM takes 28451.145000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 326871, Misses: 328489, Swap out: 16481, Swap in: 311998, Swap I/O: 328479, Hit Ratio: 0.498766
+swap on HDD takes 1658876000.000000 mu-seconds
+swap on SSD takes 13568300.000000 mu-seconds
+swap on PCM takes 28520.370000 mu-seconds
+LRU Algorithm
+Frames in Mem: 10, Hits: 327844, Misses: 327516, Swap out: 16409, Swap in: 311097, Swap I/O: 327506, Hit Ratio: 0.500250
+swap on HDD takes 1653939000.000000 mu-seconds
+swap on SSD takes 13520575.000000 mu-seconds
+swap on PCM takes 28425.805000 mu-seconds
