@@ -8,15 +8,22 @@
 LIST_HEAD(Page_Ref_List, Page_Ref) page_refs;
 // List for page tables and victim lists
 LIST_HEAD(Frame_List, Frame);
-LIST_HEAD(Page_List, Page_Ref) page_ref_log;
+TAILQ_HEAD(Page_List, Page_Log) page_ref_log;
+TAILQ_HEAD(Page_Win_List, Page_Ref) page_window_log;
 
 // stuct to hold Page info
 typedef struct Page_Ref
 {
         LIST_ENTRY(Page_Ref) pages; // frames node, next
         int page_num;
-		size_t ref_count;
 } Page_Ref;
+
+typedef struct Page_Log
+{
+        TAILQ_ENTRY(Page_Log) pages; // frames node, next
+        int page_num;
+		size_t ref_count;
+} Page_Log;
 
 // stuct to hold Frame info
 typedef struct Frame
@@ -36,7 +43,9 @@ typedef struct {
 		size_t swap_in;
 		size_t swap_out;
 		size_t total_ref_count;
-		struct Page_List page_ref_log;
+		size_t page_ref_log_size;
+		struct Page_List page_ref_log; // for reference rate calculation
+		struct Page_List page_window_log; // for log window history
         struct Frame_List page_table; // List to hold frames in page table
         struct Frame_List victim_list; // List to hold frames that were replaced in page table
 		struct Frame_List swap_list;
@@ -88,5 +97,6 @@ int CLOCK(Algorithm_Data *data);
 int NFU(Algorithm_Data *data);
 int AGING(Algorithm_Data *data);
 int LOG(Algorithm_Data *data);
+int LOG_NOWIN(Algorithm_Data *data);
 
 #endif

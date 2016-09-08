@@ -1,6 +1,7 @@
 /*
    Page Replacement Algorithms
    Author: Selby Kendrick
+Contributor: Hong-Bin Tsai
    Description: Simulation of common page replacement algorithms used by
    operating systems to manage memory usage
  */
@@ -19,9 +20,16 @@
 /*
  * TODO List:
  *
- * 0. stat of hotness
- * 1. synthesize hot/cold traffic pattern.
- * 2. add R/W ratio & dirty bit.
+ * 1. add log window and find threshold
+ * 2. add completely random warmup 10 times window size 
+ * 3. add LRU-K
+ * 4. add Adaptive Replacement Cache
+ * 5. add R/W ratio & dirty bit.
+ *
+ *
+ * Wish List:
+ * 1. add hotness analysis from real trace.
+ * 2. add distribution of hot pages.
  *
  *
  */
@@ -47,21 +55,24 @@ int max_page_calls = -1;//1000*num_frames; // Max number of page refs to test
 int swap_mode=0; // enable swapping (between frame list and victim list)
 int debug_flag = 0; // Debug bool, 1 shows verbose output
 int printrefs = 0; // Print refs bool, 1 shows output after each page ref
+int _print_page_ref_stat =0;
 int _num_x=10;
 time_t _start_time;
-size_t _num_of_hotpages=0;
+int _num_of_hotpages=-1;
+int _window_size=-1;
 
 /**
  * Array of algorithm functions that can be enabled
  */
-Algorithm algos[8] = { {"OPTIMAL", &OPTIMAL, 0, NULL},
+Algorithm algos[9] = { {"OPTIMAL", &OPTIMAL, 0, NULL},
                        {"RANDOM", &RANDOM, 0, NULL},
                        {"FIFO", &FIFO, 0, NULL},
                        {"LRU", &LRU, 0, NULL},
                        {"CLOCK", &CLOCK, 0, NULL},
                        {"NFU", &NFU, 0, NULL},
                        {"AGING", &AGING, 0, NULL},
-                       {"LOG", &LOG, 0, NULL}
+                       {"LOG", &LOG, 0, NULL},
+                       {"LOG_NOWIN", &LOG_NOWIN, 0, NULL}
 };
 
 /**
@@ -77,6 +88,10 @@ static struct option long_options[] = {
 	{"algo", required_argument, 0, 'a'},
 	{"multi", required_argument, 0, 'x'},
 	{"frames", required_argument, 0, 'f'},
+	{"dist_page", required_argument, 0, 'p'},
+	{"hotness", required_argument, 0, 'h'},
+	{"ref_stat", no_argument, &_print_page_ref_stat, 1},
+	{"window", required_argument, 0, 'w'},
 	{"verbose", no_argument, &printrefs, 1},
 	{"debug", no_argument, &debug_flag, 1},
 	{0, 0, 0, 0}
@@ -97,14 +112,15 @@ int main ( int argc, char *argv[] )
 
 		int long_index = 0;
 		int opt;
+		int i=0;
 		char* token;
-		char algo_str[128];
+		char algo_str[128]={0};
 		char delim[2]={0};
 		delim[0]=' ';
 		delim[1]=',';
 
 
-        while((opt = getopt_long(argc, argv, "a:f:vdsx:h:", long_options, &long_index)) != -1)
+        while((opt = getopt_long(argc, argv, "a:f:w:vdsrx:p:h:", long_options, &long_index)) != -1)
         {
 
 			switch(opt)
@@ -137,12 +153,26 @@ int main ( int argc, char *argv[] )
 
 					break;
 				case 'f':
-					num_frames = atoi(argv[2]);
+					num_frames = atoi(optarg);
 					if ( num_frames < 1 )
                		{
                		        num_frames = 1;
                		        printf( "Number of page frames must be at least 1, setting to 1\n");
                		}
+					break;
+				case 'p':
+					page_ref_upper_bound = atoi(optarg);
+					if(page_ref_upper_bound<num_frames)
+					{
+						page_ref_upper_bound=num_frames<<1;
+						fprintf(stderr, "number of distinct pages should be larger than number of frames, set to %d\n", page_ref_upper_bound);
+					}
+					break;
+				case 'w':
+					_window_size=atoi(optarg);
+					break;
+				case 'r':
+					_print_page_ref_stat = 1;
 					break;
 				case 'v':
 					printrefs = 1;
@@ -158,13 +188,12 @@ int main ( int argc, char *argv[] )
 					break;
 				case 'h':
 					/*
-					 * 1 = 10% data takes 90% refs
-					 * 2 = 20% data takes 80% refs
-					 * 3 = 30% data takes 70% refs
-					 * 4 = 40% data takes 60% refs
-					 * 5 = 50% data takes 50% refs
+					 * 10 = 10% data takes 90% refs
+					 * 20 = 20% data takes 80% refs
+					 * 30 = 30% data takes 70% refs
+					 * 40 = 40% data takes 60% refs
 					 */
-					_num_of_hotpages = atoi(optarg)<<1;
+					_num_of_hotpages = atoi(optarg);
 					break;
 				default:
 					print_help(argv[0]);
@@ -172,6 +201,10 @@ int main ( int argc, char *argv[] )
 			}
 		}
 
+		
+		if(strlen(algo_str)==0)
+			for(i=0; i< sizeof(algos)/sizeof(Algorithm); i++)
+				algos[i].selected = 1;
 
         init();
 		event_loop();
@@ -183,13 +216,17 @@ void print_page_ref_stat()
 {
 	Page_Ref* p=NULL;
 	int *page_ref_num=NULL;
+	int refs=0;
 	page_ref_num = malloc(sizeof(int) * page_ref_upper_bound);
 	LIST_FOREACH(p, &page_refs, pages )
+	{
 		page_ref_num[p->page_num]++;
+		refs++;
+	}
 
 	int i=0;
 	for(i=0; i<page_ref_upper_bound; i++)
-		printf("page[%d] refs: %d, percentage:%f\n", i, page_ref_num[i], (double)page_ref_num[i]/(double)_num_refs);
+		printf("page[%02d] refs: %6d, percentage:%f\n", i, page_ref_num[i], (double)page_ref_num[i]/(double)refs);
 
 	printf("total number of references: %d\n", _num_refs);
 	free(page_ref_num);
@@ -206,14 +243,28 @@ int init()
 {
 	time(&_start_time);
 	max_page_calls = num_frames * pow((double)2, (double)_num_x);
-	page_ref_upper_bound = num_frames<<1;
+	//page_ref_upper_bound = num_frames<<1;
+	if(page_ref_upper_bound < 0)
+	{
+		fprintf(stderr, ">>> # of distinct pages not set, set to %d\n", num_frames<<1);
+		page_ref_upper_bound=num_frames<<1;
+	}
+
+	if(_num_of_hotpages < 0)
+	{
+		fprintf(stderr, ">>> # of hot pages not set, set to 0 \n");
+		_num_of_hotpages = 0;
+	}
+	else
+		_num_of_hotpages = ((double)_num_of_hotpages/100.0)*(page_ref_upper_bound);
+
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	srand((int)ts.tv_nsec);
     gen_page_refs();
 
-//	if(debug)
-	print_page_ref_stat();
+	if(_print_page_ref_stat)
+		print_page_ref_stat();
     // Calculate number of algos
     num_algos = sizeof(algos)/sizeof(Algorithm);
     size_t i = 0;
@@ -259,6 +310,9 @@ void gen_page_refs()
 	int hotpages[_num_of_hotpages];
 	int i=0, j=0;
 	int dupe=0;
+
+
+	/* select non-duplicated  hot pages */
 	fprintf(stderr, "hot pages: ");
 	for(i=0; i<_num_of_hotpages; i++)
 	{
@@ -332,12 +386,31 @@ void gen_page_refs()
 Page_Ref* gen_ref(int* hotpages)
 {
 	int page_num = -1;
-	page_num = rand() % page_ref_upper_bound;
+	int i=0;
+//	int found=0;
+//	page_num = rand() % page_ref_upper_bound;
 
 	if(_num_of_hotpages>0 && 
-			(rand()/(double)RAND_MAX) < (1- (double)_num_of_hotpages/page_ref_upper_bound))
+			((double)rand()/(double)(RAND_MAX)) < (1- (double)((double)(_num_of_hotpages)/(double)(page_ref_upper_bound))))
+	{
 			page_num = hotpages[rand() % _num_of_hotpages];
+	}
+	else
+	{
+		while(1)
+		{
+			page_num = rand() % page_ref_upper_bound;
+			for(i=0; i<_num_of_hotpages; i++)
+			{
+				if(page_num == hotpages[i])
+					break;
+			}
+			if(i==_num_of_hotpages)
+				break;
+		}
+	}
 
+//	fprintf(stderr, "dice = %f\n", (double)rand()/(double)RAND_MAX);
 
     Page_Ref *page = malloc(sizeof(Page_Ref));
     page->page_num =  page_num;
@@ -362,7 +435,8 @@ Algorithm_Data *create_algo_data_store()
 		data->total_ref_count = 0;
         data->last_victim = NULL;
         /* Initialize Lists */
-        LIST_INIT(&(data->page_ref_log));
+        TAILQ_INIT(&(data->page_ref_log));
+        TAILQ_INIT(&(data->page_window_log));
         LIST_INIT(&(data->page_table));
         LIST_INIT(&(data->victim_list));
         LIST_INIT(&(data->swap_list));
@@ -533,6 +607,7 @@ int OPTIMAL(Algorithm_Data *data)
         Frame *framep = data->page_table.lh_first,
               *victim = NULL;
         int fault = 0;
+data->total_ref_count++;
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
         while (framep != NULL && framep->page > -1 && framep->page != last_page_ref) {
                 framep = framep->frames.le_next;
@@ -592,7 +667,17 @@ int OPTIMAL(Algorithm_Data *data)
                 for (framep = data->page_table.lh_first; framep != NULL; framep = framep->frames.le_next)
                         printf("Slot: %d, Page: %d, Time used: %d\n", framep->index, framep->page, framep->extra);
         }
-        if(fault == 1) data->misses++; else data->hits++;
+
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+				if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+				if(fault == 1) data->misses++; else data->hits++;
         return fault;
 }
 
@@ -611,6 +696,7 @@ int RANDOM(Algorithm_Data *data)
                      *victim = NULL;
         int rand_victim = rand() % num_frames;
         int fault = 0;
+		data->total_ref_count++;
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
         while (framep != NULL && framep->page > -1 && framep->page != last_page_ref) {
                 if(framep->index == rand_victim) // rand
@@ -644,7 +730,18 @@ int RANDOM(Algorithm_Data *data)
                 for (framep = data->page_table.lh_first; framep != NULL; framep = framep->frames.le_next)
                         printf("Slot: %d, Page: %d, Time used: %d\n", framep->index, framep->page, framep->extra);
         }
-        if(fault == 1) data->misses++; else data->hits++;
+
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+    	    if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+    	    if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -662,6 +759,7 @@ int FIFO(Algorithm_Data *data)
         struct Frame *framep = data->page_table.lh_first,
                      *victim = NULL;
         int fault = 0;
+		data->total_ref_count++;
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
         while (framep != NULL && 
 				framep->page > -1 && 
@@ -693,26 +791,38 @@ int FIFO(Algorithm_Data *data)
         }
         else if(framep->page == last_page_ref)
         { // The page was found! Hit!
-				clock_gettime(CLOCK_REALTIME,&framep->time );
+				//clock_gettime(CLOCK_REALTIME,&framep->time );
                 framep->extra = counter;
         }
-        if(fault == 1) data->misses++; else data->hits++;
+
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+			    if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+			if(fault == 1) data->misses++; else data->hits++;
         return fault;
 }
 
 
-
-int LOG(Algorithm_Data *data)
+int LOG_NOWIN(Algorithm_Data *data)
 {
         struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
                      *victim = NULL;
 
+		struct Page_Log *page = NULL;
         int fault = 0;
 		data->total_ref_count++;
 
-		int counted=0;
-		struct Page_Ref *pg = NULL;
-		LIST_FOREACH(pg, &data->page_ref_log, pages)
+
+		/* increase page reference count by 1 */
+		int counted=0; 
+		struct Page_Log *pg = NULL;
+		TAILQ_FOREACH(pg, &data->page_ref_log, pages)
 		{
 			if(pg->page_num == last_page_ref)
 			{
@@ -722,63 +832,76 @@ int LOG(Algorithm_Data *data)
 			}
 		}
 
-		if(counted ==0) // this page is never referenced before
+		if(counted ==0) // if this page is never referenced before, add to log
 		{
-			Page_Ref *page = malloc(sizeof(struct Page_Ref));
+			page = malloc(sizeof(struct Page_Log));
 			page->page_num = last_page_ref;
 			page->ref_count = 1;
-			LIST_INSERT_HEAD(&data->page_ref_log, page, pages);
+			TAILQ_INSERT_TAIL(&data->page_ref_log, page, pages);
+			//data->page_ref_log_size++;
 		}
+/*
+		page = malloc(sizeof(struct Page_Log));
+		page->page_num = last_page_ref;
+		// insert to window log here
+		TAILQ_INSERT_TAIL(&data->page_window_log, page, pages);
+		data->page_ref_log_size++;
+		if(_window_size > 0 && data->page_ref_log_size > _window_size)
+		{
+			page = data->page_window_log.tqh_first;
+			TAILQ_FOREACH(pg, &data->page_ref_log, pages)
+			{
+				if(pg->page_num == page->page_num)
+				{
+					pg->ref_count--;
+					break;
+				}
+			}
+			if(page != NULL) // just in case 
+			{
+				TAILQ_REMOVE(&data->page_window_log, data->page_window_log.tqh_first, pages);
+				data->page_ref_log_size--;
+			}
+		}
+*/
 
-
+		/*
+		 * search log list for ref_count of page num contained by frame list.
+		 * pick the one with lowest hotness to evict. 
+		 */
 		double hotness = 0.0;
 		double min_hotness=1.0;
 		while(framep != NULL &&
 				framep->page > -1 &&
 				framep->page != last_page_ref)
 		{
-			LIST_FOREACH(pg, &data->page_ref_log, pages)
-			{
-				if(framep->page == pg->page_num)
-				{
-					//fprintf(stderr, "%s:%d page %d hotness = %f\n", __FILE__, __LINE__, pg->page_num, (double)pg->ref_count/(double)data->total_ref_count);
-					hotness = (double)pg->ref_count/(double)data->total_ref_count;
-					if(hotness < min_hotness)
-					{
-						min_hotness = hotness;
-						victim = framep;
-					}
-				}
-			}
 
 			/*
-                if(victim == NULL || 
-					compare_time(framep->time, victim->time)==-1)
+			if( _window_size > 0 && data->page_ref_log_size < _window_size)
+			{
+				if(victim==NULL || compare_time(framep->time, victim->time)==-1)
+					victim = framep;
+			}
+			else
+			{
+			*/
+				TAILQ_FOREACH(pg, &data->page_ref_log, pages)
 				{
-			victim = framep;
+					if(framep->page == pg->page_num)
+					{
+						//fprintf(stderr, "%s:%d page %d hotness = %f\n", __FILE__, __LINE__, pg->page_num, (double)pg->ref_count/(double)data->total_ref_count);
+						hotness = (double)pg->ref_count/(double)data->total_ref_count;
+						if(hotness < min_hotness)
+						{
+							min_hotness = hotness;
+							victim = framep;
+						}
+					}
 				}
-				*/
+			//}
 
-                framep = framep->frames.le_next;
+            framep = framep->frames.le_next;
 		}
-
-		/*
-		 *  search page table for the frame holding referenced page. 
-		 */
-		/*
-        while (framep != NULL && 
-				framep->page > -1 && 
-				framep->page != last_page_ref) {
-
-                if(victim == NULL || 
-					compare_time(framep->time, victim->time)==-1)
-				{
-                        victim = framep; // No victim yet or frame older than victim
-				}
-                framep = framep->frames.le_next;
-
-        }
-		*/
 
         /* Make a decision */
         if(framep == NULL) 
@@ -801,6 +924,7 @@ int LOG(Algorithm_Data *data)
 			add_victim(&data->victim_list, victim);
 
 
+			/*
 			if(swap_in(&data->swap_list)==1) // last_page_ref is found in swap_list
 				data->swap_in++;
 			else
@@ -808,6 +932,7 @@ int LOG(Algorithm_Data *data)
 				swap_out(&data->swap_list, victim);
 				data->swap_out++;
 			}
+			*/
 
 			victim->page = last_page_ref;
 			clock_gettime(CLOCK_REALTIME,&victim->time );
@@ -828,7 +953,178 @@ int LOG(Algorithm_Data *data)
 				clock_gettime(CLOCK_REALTIME,&framep->time );
                 framep->extra = counter;
         }
-        if(fault == 1) data->misses++; else data->hits++;
+
+		/*
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+				if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+		*/
+				if(fault == 1) data->misses++; else data->hits++;
+
+        return fault;
+}
+
+
+int LOG(Algorithm_Data *data)
+{
+        struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
+                     *victim = NULL;
+
+		struct Page_Log *page = NULL;
+        int fault = 0;
+		data->total_ref_count++;
+
+
+		/* increase page reference count by 1 */
+		int counted=0; 
+		struct Page_Log *pg = NULL;
+		TAILQ_FOREACH(pg, &data->page_ref_log, pages)
+		{
+			if(pg->page_num == last_page_ref)
+			{
+				pg->ref_count++;
+				counted = 1;
+				break;
+			}
+		}
+
+		if(counted ==0) // if this page is never referenced before, add to log
+		{
+			page = malloc(sizeof(struct Page_Log));
+			page->page_num = last_page_ref;
+			page->ref_count = 1;
+			TAILQ_INSERT_TAIL(&data->page_ref_log, page, pages);
+			//data->page_ref_log_size++;
+		}
+
+		page = malloc(sizeof(struct Page_Log));
+		page->page_num = last_page_ref;
+		// insert to window log here
+		TAILQ_INSERT_TAIL(&data->page_window_log, page, pages);
+		data->page_ref_log_size++;
+
+		if(_window_size > 0 && data->page_ref_log_size > _window_size)
+		{
+			page = data->page_window_log.tqh_first;
+			TAILQ_FOREACH(pg, &data->page_ref_log, pages)
+			{
+				if(pg->page_num == page->page_num)
+				{
+					pg->ref_count--;
+					break;
+				}
+			}
+			if(page != NULL) // just in case 
+			{
+				TAILQ_REMOVE(&data->page_window_log, data->page_window_log.tqh_first, pages);
+				data->page_ref_log_size--;
+			}
+		}
+
+		/*
+		 * search log list for ref_count of page num contained by frame list.
+		 * pick the one with lowest hotness to evict. 
+		 */
+		double hotness = 0.0;
+		double min_hotness=1.0;
+		while(framep != NULL &&
+				framep->page > -1 &&
+				framep->page != last_page_ref)
+		{
+
+			if( _window_size > 0 && data->page_ref_log_size < _window_size)
+			{
+				if(victim==NULL || compare_time(framep->time, victim->time)==-1)
+					victim = framep;
+			}
+			else
+			{
+				TAILQ_FOREACH(pg, &data->page_ref_log, pages)
+				{
+					if(framep->page == pg->page_num)
+					{
+						//fprintf(stderr, "%s:%d page %d hotness = %f\n", __FILE__, __LINE__, pg->page_num, (double)pg->ref_count/(double)data->total_ref_count);
+						hotness = (double)pg->ref_count/(double)data->total_ref_count;
+						if(hotness < min_hotness)
+						{
+							min_hotness = hotness;
+							victim = framep;
+						}
+					}
+				}
+			}
+
+            framep = framep->frames.le_next;
+		}
+
+        /* Make a decision */
+        if(framep == NULL) 
+        { // It's a miss, kill our victim, need to swap
+
+
+			/*
+			 * search swap list, if hit in swap, swap-in, else swap-out
+			 * in this implementation, DAX is not supported. 
+			 * victim is pointing to memory page to be evicted. 
+			 * 1. add victim to victim list
+			 * 1.2. check swap_list and swap-in if found in swap_list
+			 * 1.3. if hit in swap, renew the reference time in swap.
+			 * 1.5. if miss in swap, swap-out victim page to swap_list
+			 * 2. change victim page's value to referenced page
+			 */
+
+
+			if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+			add_victim(&data->victim_list, victim);
+
+
+			/*
+			if(swap_in(&data->swap_list)==1) // last_page_ref is found in swap_list
+				data->swap_in++;
+			else
+			{
+				swap_out(&data->swap_list, victim);
+				data->swap_out++;
+			}
+			*/
+
+			victim->page = last_page_ref;
+			clock_gettime(CLOCK_REALTIME,&victim->time );
+			victim->extra = counter;
+			fault = 1;
+
+
+        }
+        else if(framep->page == -1)
+        { // Can use free page table index
+                framep->page = last_page_ref;
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+                fault = 1;
+        }
+        else if(framep->page == last_page_ref)
+        { // The page was found! Hit!
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+        }
+
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+				if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+				if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -849,6 +1145,7 @@ int LRU(Algorithm_Data *data)
                      *victim = NULL;
 
         int fault = 0;
+		data->total_ref_count++;
 
 		/*
 		 *  search page table for the frame holding referenced page. 
@@ -887,6 +1184,7 @@ int LRU(Algorithm_Data *data)
 			add_victim(&data->victim_list, victim);
 
 
+			/*
 			if(swap_in(&data->swap_list)==1) // last_page_ref is found in swap_list
 				data->swap_in++;
 			else
@@ -894,6 +1192,7 @@ int LRU(Algorithm_Data *data)
 				swap_out(&data->swap_list, victim);
 				data->swap_out++;
 			}
+			*/
 
 			victim->page = last_page_ref;
 			clock_gettime(CLOCK_REALTIME,&victim->time );
@@ -914,7 +1213,17 @@ int LRU(Algorithm_Data *data)
 				clock_gettime(CLOCK_REALTIME,&framep->time );
                 framep->extra = counter;
         }
-        if(fault == 1) data->misses++; else data->hits++;
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+	        if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+	        if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -932,6 +1241,7 @@ int CLOCK(Algorithm_Data *data)
         static Frame *clock_hand = NULL; // Clock needs a hand
         Frame *framep = data->page_table.lh_first;
         int fault = 0;
+		data->total_ref_count++;
         /* Forward traversal. */
         /* Find target (hit), empty page slot (miss), or victim to evict (miss) */
         while(framep != NULL && framep->page > -1 && framep->page != last_page_ref)
@@ -969,7 +1279,17 @@ int CLOCK(Algorithm_Data *data)
                 clock_hand->extra = 0;
                 fault = 1;
         }
-        if(fault == 1) data->misses++; else data->hits++;
+		if(_window_size>0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+    	    if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+    	    if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -987,6 +1307,8 @@ int NFU(Algorithm_Data *data)
         struct Frame *framep = data->page_table.lh_first,
                      *victim = NULL;
         int fault = 0;
+		data->total_ref_count++;
+
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
         while (framep != NULL && framep->page > -1 && framep->page != last_page_ref) {
                 if(victim == NULL || framep->extra < victim->extra)
@@ -1014,7 +1336,17 @@ int NFU(Algorithm_Data *data)
 				clock_gettime(CLOCK_REALTIME,&framep->time );
                 framep->extra++;
         }
-        if(fault == 1) data->misses++; else data->hits++;
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+	        if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+	        if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -1032,6 +1364,8 @@ int AGING(Algorithm_Data *data)
         struct Frame *framep = data->page_table.lh_first,
                      *victim = NULL;
         int fault = 0;
+		data->total_ref_count++;
+
         /* Find target (hit), empty page index (miss), or victim to evict (miss) */
         while (framep != NULL && framep->page > -1 && framep->page != last_page_ref) {
                 framep->extra /= 2;
@@ -1064,7 +1398,18 @@ int AGING(Algorithm_Data *data)
                         framep->extra /= 2;
                 }
         }
-        if(fault == 1) data->misses++; else data->hits++;
+
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+    	    if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+    	    if(fault == 1) data->misses++; else data->hits++;
+
         return fault;
 }
 
@@ -1081,6 +1426,8 @@ void print_help(const char *binary)
         printf( "   -a algorithm    - page algorithm to use, e.g., \"LRU,CLOCK\"\n");
         printf( "   -f num_frames   - number of page frames {int > 0}\n");
         printf( "   -v - print page table after each ref is processed {1 or 0}\n");
+        printf( "   -d - verbose debugging output {1 or 0}\n");
+        printf( "   -r - verbose debugging output {1 or 0}\n");
         printf( "   -d - verbose debugging output {1 or 0}\n");
 		exit(0);
 }
@@ -1108,13 +1455,15 @@ int print_summary(Algorithm algo)
         printf("Frames in Mem: %d, ", num_frames);
         printf("Hits: %d, ", algo.data->hits);
         printf("Misses: %d, ", algo.data->misses);
+		/*
         printf("Swap out: %zu, ", algo.data->swap_out);
         printf("Swap in: %zu, ", algo.data->swap_in);
         printf("Swap I/O: %zu, ", algo.data->swap_out + algo.data->swap_in);
+		*/
         printf("Hit Ratio: %f\n", (double)algo.data->hits/(double)(algo.data->hits+algo.data->misses));
-		printf("swap on HDD takes %f mu-seconds\n", (double) (HDD_READ_LATENCY * algo.data->swap_in + HDD_WRITE_LATENCY * algo.data->swap_out));
-		printf("swap on SSD takes %f mu-seconds\n", (double) (SSD_READ_LATENCY * algo.data->swap_in + SSD_WRITE_LATENCY * algo.data->swap_out));
-		printf("swap on PCM takes %f mu-seconds\n", (double) (1000*PCM_READ_LATENCY * (double)algo.data->swap_in + 1000*PCM_WRITE_LATENCY * (double)algo.data->swap_out)/1000);
+//		printf("swap on HDD takes %f mu-seconds\n", (double) (HDD_READ_LATENCY * algo.data->swap_in + HDD_WRITE_LATENCY * algo.data->swap_out));
+//		printf("swap on SSD takes %f mu-seconds\n", (double) (SSD_READ_LATENCY * algo.data->swap_in + SSD_WRITE_LATENCY * algo.data->swap_out));
+//		printf("swap on PCM takes %f mu-seconds\n", (double) (1000*PCM_READ_LATENCY * (double)algo.data->swap_in + 1000*PCM_WRITE_LATENCY * (double)algo.data->swap_out)/1000);
 
         return 0;
 }
@@ -1181,8 +1530,10 @@ int cleanup()
         for (i = 0; i < num_algos; i++)
         {
                 /* Clean up memory, delete the list */
-                while (algos[i].data->page_ref_log.lh_first != NULL)
-                        LIST_REMOVE(algos[i].data->page_ref_log.lh_first, pages);
+                while (algos[i].data->page_ref_log.tqh_first != NULL)
+                        TAILQ_REMOVE(&algos[i].data->page_ref_log, algos[i].data->page_ref_log.tqh_first, pages);
+                while (algos[i].data->page_window_log.tqh_first != NULL)
+                        TAILQ_REMOVE(&algos[i].data->page_window_log, algos[i].data->page_window_log.tqh_first, pages);
                 while (algos[i].data->page_table.lh_first != NULL)
                         LIST_REMOVE(algos[i].data->page_table.lh_first, frames);
                 while (algos[i].data->victim_list.lh_first != NULL)
