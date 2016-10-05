@@ -1,0 +1,180 @@
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117090, Misses: 35750, Hit Ratio: 0.766095
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77862, Misses: 74978, Hit Ratio: 0.509435
+FIFO Algorithm
+Frames in Mem: 10, Hits: 76401, Misses: 76439, Hit Ratio: 0.499876
+LRU Algorithm
+Frames in Mem: 10, Hits: 78509, Misses: 74331, Hit Ratio: 0.513668
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78819, Misses: 74021, Hit Ratio: 0.515696
+NFU Algorithm
+Frames in Mem: 10, Hits: 76354, Misses: 76486, Hit Ratio: 0.499568
+AGING Algorithm
+Frames in Mem: 10, Hits: 79842, Misses: 72998, Hit Ratio: 0.522389
+LOG Algorithm
+Frames in Mem: 10, Hits: 90560, Misses: 62280, Hit Ratio: 0.592515
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 97096, Misses: 66744, Hit Ratio: 0.592627
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117019, Misses: 35821, Hit Ratio: 0.765631
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77812, Misses: 75028, Hit Ratio: 0.509108
+FIFO Algorithm
+Frames in Mem: 10, Hits: 79375, Misses: 73465, Hit Ratio: 0.519334
+LRU Algorithm
+Frames in Mem: 10, Hits: 78130, Misses: 74710, Hit Ratio: 0.511188
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78375, Misses: 74465, Hit Ratio: 0.512791
+NFU Algorithm
+Frames in Mem: 10, Hits: 79172, Misses: 73668, Hit Ratio: 0.518006
+AGING Algorithm
+Frames in Mem: 10, Hits: 79932, Misses: 72908, Hit Ratio: 0.522978
+LOG Algorithm
+Frames in Mem: 10, Hits: 90091, Misses: 62749, Hit Ratio: 0.589446
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96526, Misses: 67314, Hit Ratio: 0.589148
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117013, Misses: 35827, Hit Ratio: 0.765591
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77798, Misses: 75042, Hit Ratio: 0.509016
+FIFO Algorithm
+Frames in Mem: 10, Hits: 73977, Misses: 78863, Hit Ratio: 0.484016
+LRU Algorithm
+Frames in Mem: 10, Hits: 78632, Misses: 74208, Hit Ratio: 0.514473
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78654, Misses: 74186, Hit Ratio: 0.514617
+NFU Algorithm
+Frames in Mem: 10, Hits: 74016, Misses: 78824, Hit Ratio: 0.484271
+AGING Algorithm
+Frames in Mem: 10, Hits: 79800, Misses: 73040, Hit Ratio: 0.522115
+LOG Algorithm
+Frames in Mem: 10, Hits: 90069, Misses: 62771, Hit Ratio: 0.589303
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96518, Misses: 67322, Hit Ratio: 0.589099
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117098, Misses: 35742, Hit Ratio: 0.766148
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77982, Misses: 74858, Hit Ratio: 0.510220
+FIFO Algorithm
+Frames in Mem: 10, Hits: 79671, Misses: 73169, Hit Ratio: 0.521271
+LRU Algorithm
+Frames in Mem: 10, Hits: 78764, Misses: 74076, Hit Ratio: 0.515336
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78861, Misses: 73979, Hit Ratio: 0.515971
+NFU Algorithm
+Frames in Mem: 10, Hits: 79608, Misses: 73232, Hit Ratio: 0.520858
+AGING Algorithm
+Frames in Mem: 10, Hits: 79667, Misses: 73173, Hit Ratio: 0.521244
+LOG Algorithm
+Frames in Mem: 10, Hits: 90364, Misses: 62476, Hit Ratio: 0.591233
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96844, Misses: 66996, Hit Ratio: 0.591089
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117147, Misses: 35693, Hit Ratio: 0.766468
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 78061, Misses: 74779, Hit Ratio: 0.510737
+FIFO Algorithm
+Frames in Mem: 10, Hits: 76406, Misses: 76434, Hit Ratio: 0.499908
+LRU Algorithm
+Frames in Mem: 10, Hits: 78906, Misses: 73934, Hit Ratio: 0.516265
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 79052, Misses: 73788, Hit Ratio: 0.517221
+NFU Algorithm
+Frames in Mem: 10, Hits: 76559, Misses: 76281, Hit Ratio: 0.500909
+AGING Algorithm
+Frames in Mem: 10, Hits: 80285, Misses: 72555, Hit Ratio: 0.525288
+LOG Algorithm
+Frames in Mem: 10, Hits: 90491, Misses: 62349, Hit Ratio: 0.592064
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 97044, Misses: 66796, Hit Ratio: 0.592310
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117209, Misses: 35631, Hit Ratio: 0.766874
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 78075, Misses: 74765, Hit Ratio: 0.510828
+FIFO Algorithm
+Frames in Mem: 10, Hits: 84407, Misses: 68433, Hit Ratio: 0.552257
+LRU Algorithm
+Frames in Mem: 10, Hits: 78720, Misses: 74120, Hit Ratio: 0.515048
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78887, Misses: 73953, Hit Ratio: 0.516141
+NFU Algorithm
+Frames in Mem: 10, Hits: 84634, Misses: 68206, Hit Ratio: 0.553742
+AGING Algorithm
+Frames in Mem: 10, Hits: 79633, Misses: 73207, Hit Ratio: 0.521022
+LOG Algorithm
+Frames in Mem: 10, Hits: 90285, Misses: 62555, Hit Ratio: 0.590716
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96717, Misses: 67123, Hit Ratio: 0.590314
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117120, Misses: 35720, Hit Ratio: 0.766292
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 78056, Misses: 74784, Hit Ratio: 0.510704
+FIFO Algorithm
+Frames in Mem: 10, Hits: 76515, Misses: 76325, Hit Ratio: 0.500622
+LRU Algorithm
+Frames in Mem: 10, Hits: 78510, Misses: 74330, Hit Ratio: 0.513674
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78785, Misses: 74055, Hit Ratio: 0.515474
+NFU Algorithm
+Frames in Mem: 10, Hits: 79638, Misses: 73202, Hit Ratio: 0.521055
+AGING Algorithm
+Frames in Mem: 10, Hits: 79865, Misses: 72975, Hit Ratio: 0.522540
+LOG Algorithm
+Frames in Mem: 10, Hits: 90358, Misses: 62482, Hit Ratio: 0.591193
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96905, Misses: 66935, Hit Ratio: 0.591461
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117035, Misses: 35805, Hit Ratio: 0.765735
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77905, Misses: 74935, Hit Ratio: 0.509716
+FIFO Algorithm
+Frames in Mem: 10, Hits: 82211, Misses: 70629, Hit Ratio: 0.537889
+LRU Algorithm
+Frames in Mem: 10, Hits: 78270, Misses: 74570, Hit Ratio: 0.512104
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78394, Misses: 74446, Hit Ratio: 0.512915
+NFU Algorithm
+Frames in Mem: 10, Hits: 76599, Misses: 76241, Hit Ratio: 0.501171
+AGING Algorithm
+Frames in Mem: 10, Hits: 79871, Misses: 72969, Hit Ratio: 0.522579
+LOG Algorithm
+Frames in Mem: 10, Hits: 90188, Misses: 62652, Hit Ratio: 0.590081
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96635, Misses: 67205, Hit Ratio: 0.589813
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117139, Misses: 35701, Hit Ratio: 0.766416
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 78054, Misses: 74786, Hit Ratio: 0.510691
+FIFO Algorithm
+Frames in Mem: 10, Hits: 79339, Misses: 73501, Hit Ratio: 0.519098
+LRU Algorithm
+Frames in Mem: 10, Hits: 78761, Misses: 74079, Hit Ratio: 0.515317
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78765, Misses: 74075, Hit Ratio: 0.515343
+NFU Algorithm
+Frames in Mem: 10, Hits: 79241, Misses: 73599, Hit Ratio: 0.518457
+AGING Algorithm
+Frames in Mem: 10, Hits: 79825, Misses: 73015, Hit Ratio: 0.522278
+LOG Algorithm
+Frames in Mem: 10, Hits: 90269, Misses: 62571, Hit Ratio: 0.590611
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96652, Misses: 67188, Hit Ratio: 0.589917
+OPTIMAL Algorithm
+Frames in Mem: 10, Hits: 117124, Misses: 35716, Hit Ratio: 0.766318
+RANDOM Algorithm
+Frames in Mem: 10, Hits: 77992, Misses: 74848, Hit Ratio: 0.510285
+FIFO Algorithm
+Frames in Mem: 10, Hits: 76479, Misses: 76361, Hit Ratio: 0.500386
+LRU Algorithm
+Frames in Mem: 10, Hits: 78309, Misses: 74531, Hit Ratio: 0.512359
+CLOCK Algorithm
+Frames in Mem: 10, Hits: 78570, Misses: 74270, Hit Ratio: 0.514067
+NFU Algorithm
+Frames in Mem: 10, Hits: 79474, Misses: 73366, Hit Ratio: 0.519982
+AGING Algorithm
+Frames in Mem: 10, Hits: 80181, Misses: 72659, Hit Ratio: 0.524607
+LOG Algorithm
+Frames in Mem: 10, Hits: 90376, Misses: 62464, Hit Ratio: 0.591311
+LOG_NOWIN Algorithm
+Frames in Mem: 10, Hits: 96833, Misses: 67007, Hit Ratio: 0.591022

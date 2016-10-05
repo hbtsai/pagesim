@@ -9,7 +9,7 @@ LIST_HEAD(Page_Ref_List, Page_Ref) page_refs;
 // List for page tables and victim lists
 LIST_HEAD(Frame_List, Frame);
 TAILQ_HEAD(Page_List, Page_Log) page_ref_log;
-TAILQ_HEAD(Page_Win_List, Page_Ref) page_window_log;
+TAILQ_HEAD(Page_Win_List, Page_Log) page_window_log;
 
 // stuct to hold Page info
 typedef struct Page_Ref
@@ -65,7 +65,7 @@ typedef struct {
  */
 int init(); // init lists and variable, set up config defaults, and load configs
 void gen_page_refs();
-Page_Ref* gen_ref(int*);
+Page_Ref* gen_ref(int*, int);
 Algorithm_Data *create_algo_data_store(); // returns empty algorithm data
 Frame *create_empty_frame(int index); // returns empty frame
 int cleanup(); // frees allocated memory
@@ -77,6 +77,7 @@ int event_loop(); // loops for each page call
 int page(int page_ref); // page all algos with page ref
 int get_ref(); // get next page ref however you like
 int add_victim(struct Frame_List *victim_list, struct Frame *frame); // add victim frame to a victim list
+int export(int counter, int page_num);
 
 /**
  * Output functions
@@ -98,5 +99,7 @@ int NFU(Algorithm_Data *data);
 int AGING(Algorithm_Data *data);
 int LOG(Algorithm_Data *data);
 int LOG_NOWIN(Algorithm_Data *data);
+int LRU2(Algorithm_Data *data);
+int LRU3(Algorithm_Data *data);
 
 #endif

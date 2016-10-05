@@ -20,8 +20,6 @@ Contributor: Hong-Bin Tsai
 /*
  * TODO List:
  *
- * 1. add log window and find threshold
- * 2. add completely random warmup 10 times window size 
  * 3. add LRU-K
  * 4. add Adaptive Replacement Cache
  * 5. add R/W ratio & dirty bit.
@@ -60,11 +58,18 @@ int _num_x=10;
 time_t _start_time;
 int _num_of_hotpages=-1;
 int _window_size=-1;
+FILE *_fp = NULL; // export page number referenced
+char EXPORT_FILE[]="page_reference_list.csv";
+
+int _head_hot=0;
+int _tail_hot=0;
+int _mid_hot=0;
+int _dual_head_hot=0;
 
 /**
  * Array of algorithm functions that can be enabled
  */
-Algorithm algos[9] = { {"OPTIMAL", &OPTIMAL, 0, NULL},
+Algorithm algos[11] = { {"OPTIMAL", &OPTIMAL, 0, NULL},
                        {"RANDOM", &RANDOM, 0, NULL},
                        {"FIFO", &FIFO, 0, NULL},
                        {"LRU", &LRU, 0, NULL},
@@ -72,7 +77,9 @@ Algorithm algos[9] = { {"OPTIMAL", &OPTIMAL, 0, NULL},
                        {"NFU", &NFU, 0, NULL},
                        {"AGING", &AGING, 0, NULL},
                        {"LOG", &LOG, 0, NULL},
-                       {"LOG_NOWIN", &LOG_NOWIN, 0, NULL}
+                       {"LOG_NOWIN", &LOG_NOWIN, 0, NULL},
+                       {"LRU2", &LRU2, 0, NULL},
+                       {"LRU3", &LRU3, 0, NULL}
 };
 
 /**
@@ -83,6 +90,7 @@ int last_page_ref = -1; // Last ref
 size_t num_algos = 0; // Number of algorithms in algos, calculated in init()
 int *optimum_find_test;
 int _num_refs = 0; // Number of page refs in page_refs list
+char _trace_file[256]={};
 
 static struct option long_options[] = {
 	{"algo", required_argument, 0, 'a'},
@@ -120,7 +128,7 @@ int main ( int argc, char *argv[] )
 		delim[1]=',';
 
 
-        while((opt = getopt_long(argc, argv, "a:f:w:vdsrx:p:h:", long_options, &long_index)) != -1)
+        while((opt = getopt_long(argc, argv, "a:f:w:vdsrx:p:h:t:HTMD", long_options, &long_index)) != -1)
         {
 
 			switch(opt)
@@ -146,6 +154,10 @@ int main ( int argc, char *argv[] )
 							algos[2].selected = 1;
 						else if(strcmp(token, "OPT") ==0)
 							algos[0].selected = 1;
+						else if(strcmp(token, "LRU2") ==0)
+							algos[9].selected = 1;
+						else if(strcmp(token, "LRU3") ==0)
+							algos[10].selected = 1;
 						else
 							fprintf(stderr, "unrecognized or unsupported algorithm: %s\n", token);
 						token = strtok(0, delim);
@@ -195,12 +207,37 @@ int main ( int argc, char *argv[] )
 					 */
 					_num_of_hotpages = atoi(optarg);
 					break;
+				case 't':
+					strcpy(_trace_file, optarg);
+					if(access(_trace_file, R_OK)!=0)
+					{
+						perror("access()");
+						exit(-1);
+					}
+					break;
+				case 'H':
+					_head_hot=1;
+					break;
+				case 'T':
+					_tail_hot=1;
+					break;
+				case 'M':
+					_mid_hot=1;
+					break;
+				case 'D':
+					_dual_head_hot=1;
+					break;
 				default:
 					print_help(argv[0]);
 					break;
 			}
 		}
 
+		if(_head_hot + _tail_hot + _mid_hot + _dual_head_hot > 1)
+		{
+			fprintf(stderr, "[ERR] one distribution a time please!! \n");
+			exit(-1);
+		}
 		
 		if(strlen(algo_str)==0)
 			for(i=0; i< sizeof(algos)/sizeof(Algorithm); i++)
@@ -222,14 +259,78 @@ void print_page_ref_stat()
 	{
 		page_ref_num[p->page_num]++;
 		refs++;
+		if(refs==max_page_calls)
+			break;
 	}
 
 	int i=0;
 	for(i=0; i<page_ref_upper_bound; i++)
 		printf("page[%02d] refs: %6d, percentage:%f\n", i, page_ref_num[i], (double)page_ref_num[i]/(double)refs);
 
-	printf("total number of references: %d\n", _num_refs);
+	printf("total number of references: %d\n", refs);
 	free(page_ref_num);
+}
+
+int read_page_refs()
+{
+
+	FILE *fp = NULL;
+	char strPage[8]={};
+	int refs=1;
+	if( (fp = fopen(_trace_file, "r") ) == NULL)
+	{
+		perror("fopen()");
+		exit(-1);
+	}
+	
+	LIST_INIT(&page_refs);
+	Page_Ref *page = NULL;
+	Page_Ref *headp = NULL;
+	headp = malloc(sizeof(Page_Ref));
+	if(fgets(strPage, 1024, fp)!=NULL)
+	{
+		headp->page_num = (int) atoi(strPage);
+		LIST_INSERT_HEAD(&page_refs, headp, pages);
+		while(fgets(strPage, 1024, fp)!=NULL)
+		{
+			if(strlen(strPage)>0)
+			{
+				page = malloc(sizeof(Page_Ref));
+				page->page_num = (int) atoi(strPage);
+	    	    LIST_INSERT_AFTER(headp, page,  pages);
+				headp = headp->pages.le_next;
+				refs++;
+			}
+		}
+	}
+
+
+	
+	max_page_calls = refs;
+
+	/* init optimum_find_test for optimal algo */
+    optimum_find_test = (int*)malloc(page_ref_upper_bound*sizeof(int));
+        for(int i = 0; i < page_ref_upper_bound; ++i)
+                optimum_find_test[i] = -1;
+
+		int all_found=0;
+        while(all_found == 0)
+        { // generate new refs until one of each have been added to list
+                LIST_INSERT_AFTER(page, gen_ref(NULL, 0), pages);
+                page = page->pages.le_next;
+                optimum_find_test[page->page_num] = 1;
+                all_found = 1;
+                for(int i = 0; i < page_ref_upper_bound; ++i)
+                { // see if we've got them all yet
+                        if(optimum_find_test[i] == -1)
+                        {
+                                all_found = 0;
+                                break;
+                        }
+                }
+        }
+
+	return 0;
 }
 
 /**
@@ -241,6 +342,7 @@ void print_page_ref_stat()
  */
 int init()
 {
+
 	time(&_start_time);
 	max_page_calls = num_frames * pow((double)2, (double)_num_x);
 	//page_ref_upper_bound = num_frames<<1;
@@ -261,7 +363,13 @@ int init()
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	srand((int)ts.tv_nsec);
-    gen_page_refs();
+
+
+	if(strlen(_trace_file)>0)
+		read_page_refs();
+	else
+		gen_page_refs();
+
 
 	if(_print_page_ref_stat)
 		print_page_ref_stat();
@@ -306,7 +414,6 @@ int compare_time(struct timespec time1, struct timespec time2)
  */
 void gen_page_refs()
 {
-
 	int hotpages[_num_of_hotpages];
 	int i=0, j=0;
 	int dupe=0;
@@ -341,11 +448,33 @@ void gen_page_refs()
 
         _num_refs = 0;
         LIST_INIT(&page_refs);
-        Page_Ref *page = gen_ref(hotpages);
+        Page_Ref *page = gen_ref(hotpages, _num_of_hotpages);
         LIST_INSERT_HEAD(&page_refs, page, pages);
         while(_num_refs < max_page_calls)
         { // generate a page ref up to max_page_calls and add to list
-                LIST_INSERT_AFTER(page, gen_ref(hotpages), pages);
+
+
+			if(_head_hot && _num_refs > max_page_calls/2)
+			{
+                LIST_INSERT_AFTER(page, gen_ref(NULL, 0), pages);
+			}
+			else if(_tail_hot && _num_refs < max_page_calls / 2 )
+			{
+                LIST_INSERT_AFTER(page, gen_ref(NULL, 0), pages);
+			}
+			else if(_mid_hot && (_num_refs < max_page_calls/4 || _num_refs > max_page_calls*3/4))
+			{
+                LIST_INSERT_AFTER(page, gen_ref(NULL, 0), pages);
+			}
+			else if(_dual_head_hot &&  _num_refs > max_page_calls/4 && _num_refs < max_page_calls*3/4)
+			{
+                LIST_INSERT_AFTER(page, gen_ref(NULL, 0), pages);
+			}
+			else
+			{
+                LIST_INSERT_AFTER(page, gen_ref(hotpages, _num_of_hotpages), pages);
+			}
+
                 page = page->pages.le_next;
                 _num_refs++;
         }
@@ -359,7 +488,7 @@ void gen_page_refs()
 
         while(all_found == 0)
         { // generate new refs until one of each have been added to list
-                LIST_INSERT_AFTER(page, gen_ref(hotpages), pages);
+                LIST_INSERT_AFTER(page, gen_ref(hotpages, _num_of_hotpages), pages);
                 page = page->pages.le_next;
                 optimum_find_test[page->page_num] = 1;
                 all_found = 1;
@@ -383,29 +512,29 @@ void gen_page_refs()
  *
  * @return {Page_Ref*}
  */
-Page_Ref* gen_ref(int* hotpages)
+Page_Ref* gen_ref(int* hotpages, int nHotpages)
 {
 	int page_num = -1;
 	int i=0;
 //	int found=0;
 //	page_num = rand() % page_ref_upper_bound;
 
-	if(_num_of_hotpages>0 && 
-			((double)rand()/(double)(RAND_MAX)) < (1- (double)((double)(_num_of_hotpages)/(double)(page_ref_upper_bound))))
+	if(nHotpages>0 && 
+			((double)rand()/(double)(RAND_MAX)) < (1- (double)((double)(nHotpages)/(double)(page_ref_upper_bound))))
 	{
-			page_num = hotpages[rand() % _num_of_hotpages];
+			page_num = hotpages[rand() % nHotpages];
 	}
 	else
 	{
 		while(1)
 		{
 			page_num = rand() % page_ref_upper_bound;
-			for(i=0; i<_num_of_hotpages; i++)
+			for(i=0; i<nHotpages; i++)
 			{
 				if(page_num == hotpages[i])
 					break;
 			}
-			if(i==_num_of_hotpages)
+			if(i==nHotpages)
 				break;
 		}
 	}
@@ -481,11 +610,14 @@ Frame* create_empty_frame(int index)
  */
 int event_loop()
 {
+		int page_num = 0;
         counter = 0;
         while(counter < max_page_calls)
         {
-                page(get_ref());
+				page_num =  get_ref();
+                page(page_num);
                 ++counter;
+				export(counter, page_num);
         }
         size_t i = 0;
         for (i = 0; i < num_algos; i++)
@@ -541,6 +673,18 @@ int page(int page_ref)
         }
 
         return 0;
+}
+
+int export(int counter, int page_num)
+{
+	if(_fp==NULL)
+		_fp = fopen(EXPORT_FILE, "w+");
+
+
+	fprintf(_fp, "%d,%d\n", counter, last_page_ref);
+
+
+	return 0;
 }
 
 int swap_in(struct Frame_List *swap_list)
@@ -624,16 +768,27 @@ data->total_ref_count++;
                 while(all_found == 0)
                 {
                         if(optimum_find_test[page->page_num] == -1)
+						{
+//							fprintf(stderr, "optimum %d set to %zu\n", page->page_num, j);
                                 optimum_find_test[page->page_num] = j++;
+						}
                         all_found = 1;
+//						fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
                         for(i = 0; i < page_ref_upper_bound; ++i)
+						{
                                 if(optimum_find_test[i] == -1)
                                 {
+//									fprintf(stderr, "optimum %zu = -1\n", i);
                                         all_found = 0;
                                         break;
                                 }
-                        page = page->pages.le_next;
+						}
+//						fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
+						page = page->pages.le_next;
+//						fprintf(stderr, "%s:%d page =%p\n", __FILE__, __LINE__, page);
+							
                 }
+//				fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
                 framep = data->page_table.lh_first;
                 while (framep != NULL) {
                         if(victim == NULL || optimum_find_test[framep->page] > optimum_find_test[victim->page])
@@ -969,7 +1124,6 @@ int LOG_NOWIN(Algorithm_Data *data)
 
         return fault;
 }
-
 
 int LOG(Algorithm_Data *data)
 {
@@ -1413,6 +1567,276 @@ int AGING(Algorithm_Data *data)
         return fault;
 }
 
+int LRU2(Algorithm_Data *data)
+{
+        struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
+                     *victim = NULL;
+
+        int fault = 0;
+		int k_value = 2;
+		struct Page_Log* page=NULL;
+
+		/*
+		 *  search page table for the frame holding referenced page. 
+		 */
+		int max_distance = 0;
+		int tmp_d=0;
+		int tmp_dk=0;
+		int tmp_k=1;
+		int use_lru=0;
+//		fprintf(stderr, "current reference page = %d\n", last_page_ref);
+		data->total_ref_count++;
+
+			/*
+			 * add to log
+			 */
+		page = malloc(sizeof(Page_Log));
+		page->page_num = last_page_ref;
+		TAILQ_INSERT_TAIL(&data->page_window_log, page, pages);
+
+		struct Page_Log *pg = NULL;
+        while (framep != NULL && 
+				framep->page > -1 && 
+				framep->page != last_page_ref) 
+		{
+			tmp_d = 0;
+			tmp_dk= 0;
+			tmp_k = 0;
+			// run through log and find k-th furthest page
+			TAILQ_FOREACH_REVERSE(pg, &data->page_window_log, Page_Win_List, pages)
+			{
+				tmp_d++;
+//				fprintf(stderr, "%d ", pg->page_num);
+				if(framep->page == pg->page_num)
+				{
+					tmp_k++;
+					tmp_dk=tmp_d;
+				}
+
+				if(tmp_k==k_value)
+				{
+					use_lru=0;
+					break;
+				}
+				else
+					use_lru=1;
+			}
+
+			if(use_lru)
+			{
+				victim= NULL;
+				break;
+			}
+
+			if(max_distance < tmp_dk)
+			{
+				max_distance = tmp_dk;
+				victim = framep;
+//				fprintf(stderr, "page %d distance %d \n", framep->page, max_distance);
+			}
+
+            framep = framep->frames.le_next;
+        }
+
+
+		// if victim is not found, use LRU
+		if(victim==NULL)
+		{
+			//fprintf(stderr, "Using LRU in LRU2!!!\n");
+			framep = data->page_table.lh_first;
+    	    while (	framep != NULL && 
+					framep->page > -1 && 
+					framep->page != last_page_ref) 
+			{
+					if(victim == NULL ||
+						compare_time(framep->time, victim->time)==-1)
+					{
+    	                    victim = framep; // No victim yet or frame older than victim
+					}
+            framep = framep->frames.le_next;
+			}
+		}
+
+
+        /* Make a decision */
+        if(framep == NULL) 
+        { // It's a miss, kill our victim, need to swap
+
+			if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+			add_victim(&data->victim_list, victim);
+
+			victim->page = last_page_ref;
+			clock_gettime(CLOCK_REALTIME,&victim->time );
+			victim->extra = counter;
+			fault = 1;
+
+
+        }
+        else if(framep->page == -1)
+        { // Can use free page table index
+                framep->page = last_page_ref;
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+                fault = 1;
+        }
+        else if(framep->page == last_page_ref)
+        { // The page was found! Hit!
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+        }
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+	        if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+	        if(fault == 1) data->misses++; else data->hits++;
+
+        return fault;
+}
+
+int LRU3(Algorithm_Data *data)
+{
+        struct Frame *framep = data->page_table.lh_first, // lh_first = first element of queue 
+                     *victim = NULL;
+
+        int fault = 0;
+		int k_value = 3;
+		struct Page_Log* page=NULL;
+		data->total_ref_count++;
+
+			/*
+			 * add to log
+			 */
+		page = malloc(sizeof(Page_Log));
+		page->page_num = last_page_ref;
+		TAILQ_INSERT_TAIL(&data->page_window_log, page, pages);
+
+		/*
+		 *  search page table for the frame holding referenced page. 
+		 */
+		int max_distance = 0;
+		int tmp_d=0;
+		int tmp_dk=0;
+		int tmp_k=1;
+		int use_lru = 0;
+//		fprintf(stderr, "current reference page = %d\n", last_page_ref);
+		struct Page_Log *pg = NULL;
+        while (framep != NULL && 
+				framep->page > -1 && 
+				framep->page != last_page_ref) 
+		{
+			tmp_d = 0;
+			tmp_dk= 0;
+			tmp_k = 0;
+			TAILQ_FOREACH_REVERSE(pg, &data->page_window_log, Page_Win_List, pages)
+			{
+				tmp_d++;
+//				fprintf(stderr, "%d ", pg->page_num);
+				if(framep->page == pg->page_num)
+				{
+					tmp_k++;
+					tmp_dk=tmp_d;
+				}
+
+				if(tmp_k==k_value)
+				{
+					use_lru = 0;
+					break;
+				}
+				else
+					use_lru=1;
+
+			}
+
+			if(use_lru)
+			{
+				victim= NULL;
+				break;
+			}
+
+//			fprintf(stderr, "\n");
+
+			/*
+			if(tmp_dk != tmp_d)
+				tmp_dk = tmp_d;
+				*/
+
+			if(tmp_k > 1 && max_distance < tmp_dk)
+			{
+				max_distance = tmp_dk;
+				victim = framep;
+//				fprintf(stderr, "page %d distance %d \n", framep->page, max_distance);
+			}
+
+            framep = framep->frames.le_next;
+        }
+
+
+
+		// if victim is not found, use LRU
+		if(victim==NULL)
+		{
+			framep = data->page_table.lh_first;
+    	    while (	framep != NULL && 
+					framep->page > -1 && 
+					framep->page != last_page_ref) 
+			{
+					if(victim == NULL ||
+						compare_time(framep->time, victim->time)==-1)
+					{
+    	                    victim = framep; // No victim yet or frame older than victim
+					}
+            framep = framep->frames.le_next;
+			}
+		}
+
+
+        /* Make a decision */
+        if(framep == NULL) 
+        { // It's a miss, kill our victim, need to swap
+
+			if(debug_flag) printf("Victim selected: %d, Page: %d\n", victim->index, victim->page);
+			add_victim(&data->victim_list, victim);
+
+			victim->page = last_page_ref;
+			clock_gettime(CLOCK_REALTIME,&victim->time );
+			victim->extra = counter;
+			fault = 1;
+
+
+        }
+        else if(framep->page == -1)
+        { // Can use free page table index
+                framep->page = last_page_ref;
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+                fault = 1;
+        }
+        else if(framep->page == last_page_ref)
+        { // The page was found! Hit!
+				clock_gettime(CLOCK_REALTIME,&framep->time );
+                framep->extra = counter;
+        }
+		if(_window_size > 0)
+		{
+			if(data->total_ref_count >= _window_size && 
+					(data->total_ref_count + _window_size) < max_page_calls )
+			{
+	        if(fault == 1) data->misses++; else data->hits++;
+			}
+		}
+		else
+	        if(fault == 1) data->misses++; else data->hits++;
+
+        return fault;
+}
+
+
+
 /**
  * int print_help()
  *
@@ -1526,6 +1950,10 @@ int print_list(struct Frame *head, const char* index_label, const char* value_la
  */
 int cleanup()
 {
+
+	if(_fp != NULL)
+		fclose(_fp);
+
         size_t i = 0;
         for (i = 0; i < num_algos; i++)
         {
